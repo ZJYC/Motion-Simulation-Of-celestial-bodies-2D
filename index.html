@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>万有引力演示</title>
+<style>
+body {
+	text-align: center;
+	background: #F7FAFC;
+	overflow: hidden;
+	background: #FFF;
+}
+</style>
+</head>
+
+<body>
+<canvas id="Mycanvas" width="1920" height="946"></canvas>
+<script>
+	var fixed = true
+	var LimitRate = 0.2
+	var CurX = 0,CurY = 0;
+	//定义画布宽高和生成点的个数
+	var WIDTH = window.innerWidth,
+		HEIGHT = window.innerHeight,
+		POINT = 300;
+
+	var canvas = document.getElementById('Mycanvas');
+		canvas.width = WIDTH,
+		canvas.height = HEIGHT;
+	var context = canvas.getContext('2d');
+	context.strokeStyle = 'rgba(0,0,0,0.2)',
+		context.strokeWidth = 1,
+		context.fillStyle = 'rgba(0,1,1,1)';
+	var circleArr = [];
+
+	//线条：开始xy坐标，结束xy坐标，线条透明度
+	function Line(x, y, _x, _y, o) {
+		this.beginX = x,
+		this.beginY = y,
+		this.closeX = _x,
+		this.closeY = _y,
+		this.o = o;
+	}
+	//点：圆心xy坐标，半径，每帧移动xy的距离
+	function Circle(Enable,x, y, r, moveX, moveY,Mass) {
+        this.Enable = Enable,
+		this.x = x,
+		this.y = y,
+		this.r = r,
+		this.moveX = moveX,
+		this.moveY = moveY;
+		this.Mass = Mass
+	}
+	//生成max和min之间的随机数
+	function num(max, _min) {
+		var min = arguments[1] || 0;
+		return Math.floor(Math.random() * (max - min + 1) + min);
+	}
+	// 绘制原点
+	function drawCricle(cxt, Enable,x, y, r, moveX, moveY,Mass) {
+		var circle = new Circle(Enable,x, y, r, moveX, moveY,Mass)
+        if(circle.Enable == true){
+            cxt.beginPath()
+            cxt.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI)
+            cxt.closePath()
+            cxt.fill();
+        }
+		return circle;
+	}
+	//绘制线条
+	function drawLine(cxt, x, y, _x, _y, o) {
+		var line = new Line(x, y, _x, _y, o)
+		cxt.beginPath()
+		cxt.strokeStyle = 'rgba(0,0,0,' + o + ')'
+		cxt.moveTo(line.beginX, line.beginY)
+		cxt.lineTo(line.closeX, line.closeY)
+		cxt.closePath()
+		cxt.stroke();
+
+	}
+    
+    function Colli(i,j,C){
+        var MinDistance = circleArr[i].r + circleArr[j].r
+        if(C < MinDistance){  
+            //发生碰撞
+            var TheNewOne = (circleArr[i].Mass >= circleArr[j].Mass) ? i : j;
+            var TheDispea = (circleArr[i].Mass >= circleArr[j].Mass) ? j : i;
+            circleArr[TheDispea].Enable = false;
+            //动量守恒
+            circleArr[TheNewOne].moveX = (circleArr[i].moveX * circleArr[i].Mass + circleArr[j].moveX * circleArr[j].Mass) / (circleArr[i].Mass + circleArr[j].Mass);
+            circleArr[TheNewOne].moveY = (circleArr[i].moveY * circleArr[i].Mass + circleArr[j].moveY * circleArr[j].Mass) / (circleArr[i].Mass + circleArr[j].Mass);
+            //体积增大
+            var TotalArea = Math.pow(circleArr[TheDispea].r,2)+Math.pow(circleArr[TheNewOne].r,2)
+            circleArr[TheNewOne].r = Math.sqrt(TotalArea)
+			//质量增加
+			circleArr[TheNewOne].Mass = circleArr[TheDispea].Mass + circleArr[TheNewOne].Mass
+        }
+    }
+    
+    function Gravi(K,i,j,A,B,C){
+		//求出万有引力
+        var	Strength = circleArr[i].Mass*circleArr[j].Mass*K/Math.pow(C,2)
+		//受力分解
+        var	StrengthX = Strength * A / C
+        var	StrengthY = Strength * B / C
+		//转换成加速度
+        circleArr[i].moveX += ((circleArr[i].x > circleArr[j].x)? -1:1) * StrengthX / circleArr[i].Mass;
+        circleArr[j].moveX += ((circleArr[i].x < circleArr[j].x)? -1:1) * StrengthX / circleArr[j].Mass;
+        circleArr[i].moveY += ((circleArr[i].y > circleArr[j].y)? -1:1) * StrengthY / circleArr[i].Mass;
+        circleArr[j].moveY += ((circleArr[i].y < circleArr[j].y)? -1:1) * StrengthY / circleArr[j].Mass;
+        
+    }
+    
+    function Resis(K,C){
+        
+    }
+    
+	ClearCount = 0;
+	
+	//每帧绘制
+	function draw() {
+		//ClearCount = ClearCount + 1;
+		//if(ClearCount % 100 == 0)context.clearRect(0,0, canvas.width, canvas.height);
+		context.clearRect(0,0, canvas.width, canvas.height);
+		for(var i = 0; i < POINT; i++) {
+			drawCricle(context, circleArr[i].Enable,circleArr[i].x, circleArr[i].y, circleArr[i].r,circleArr[i].Mass);
+		}
+		for(var i = 0; i < POINT; i++) {
+			for(var j = 0; j < POINT; j++) {
+				if(i != j && circleArr[i].Enable == true && circleArr[j].Enable == true) {
+                    //计算距离
+					var A = Math.abs(circleArr[i].x - circleArr[j].x)
+					var	B = Math.abs(circleArr[i].y - circleArr[j].y)
+                    var C = Math.sqrt(Math.pow(A,2) + Math.pow(B,2))
+                    //碰撞反馈
+                    Colli(i,j,C);
+                    //添加万有引力
+                    Gravi(1,i,j,A,B,C);
+				}
+			}
+		}
+	}
+	//初始化生成原点
+	function init() {
+		circleArr = [];
+		for(var i = 0; i < POINT; i++) {
+			var r = num(2,6)
+			var Mass = r*r*Math.PI/70
+			var SpeedX = num(-20,20)/4
+			var SpeedY = num(-20,20)/4
+			var PositionX = num(WIDTH)
+			var PositionY = num(HEIGHT)
+			circleArr.push(drawCricle(context, true,PositionX, PositionY, r, SpeedX, SpeedY,Mass));
+		}
+		draw();
+	}
+	//调用执行
+	window.onload = function() {
+		init();
+        circleArr[POINT - 1].Mass = 10000;
+        circleArr[POINT - 1].r = 30
+		circleArr[POINT - 1].x = WIDTH / 2;
+		circleArr[POINT - 1].y = HEIGHT / 2;
+		setInterval(function() {
+			for(var i = 0; i < POINT; i++) {
+				var cir = circleArr[i];
+				cir.x += cir.moveX;
+				cir.y += cir.moveY;
+				//cir.moveX = (cir.x > WIDTH || cir.x < 0) ? -cir.moveX:cir.moveX;
+				//cir.moveY = (cir.y > HEIGHT || cir.y < 0) ? -cir.moveY:cir.moveY;
+			}
+			for(var i = 0; i < POINT; i++) {
+				var cir = circleArr[i];
+				cir.x -= circleArr[POINT - 1].moveX;
+				cir.y -= circleArr[POINT - 1].moveY;
+			}
+			if(fixed == true){
+				circleArr[POINT - 1].r = 20
+				circleArr[POINT - 1].Enable = true;
+				LimitXMin = WIDTH / 2 - WIDTH * LimitRate;
+				LimitXMax = WIDTH / 2 + WIDTH * LimitRate;
+				LimitYMin = HEIGHT / 2 - HEIGHT * LimitRate;
+				LimitYMax = HEIGHT / 2 + HEIGHT * LimitRate;
+				circleArr[POINT - 1].moveX = (circleArr[POINT - 1].x > LimitXMax || circleArr[POINT - 1].x < LimitXMin) ? -circleArr[POINT - 1].moveX:circleArr[POINT - 1].moveX;
+				circleArr[POINT - 1].moveY = (circleArr[POINT - 1].y > LimitYMax || circleArr[POINT - 1].y < LimitYMin) ? -circleArr[POINT - 1].moveY:circleArr[POINT - 1].moveY;
+			}
+			draw();
+		}, 20);
+	}
+</script>
+</body>
+</html>
