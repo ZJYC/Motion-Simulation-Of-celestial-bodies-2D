@@ -16,14 +16,10 @@ body {
 <body>
 <canvas id="Mycanvas" width="1920" height="1080"></canvas>
 <script>
-	var fixed = true
-	var LimitRate = 0.2
-	var LimitX = 2;
-	var CurX = 0,CurY = 0;
 	//定义画布宽高和生成点的个数
 	var WIDTH = window.innerWidth,
 		HEIGHT = window.innerHeight,
-		POINT = 30;
+		POINT = 400;
 	var canvas = document.getElementById('Mycanvas');
 		canvas.width = WIDTH,
 		canvas.height = HEIGHT;
@@ -67,20 +63,14 @@ body {
         }
 		return circle;
 	}
-	//绘制线条
-	function drawLine(cxt, x, y, _x, _y, o) {
-		var line = new Line(x, y, _x, _y, o)
-		cxt.beginPath()
-		cxt.strokeStyle = 'rgba(0,0,0,' + o + ')'
-		cxt.moveTo(line.beginX, line.beginY)
-		cxt.lineTo(line.closeX, line.closeY)
-		cxt.closePath()
-		cxt.stroke();
-	}
-    
+    //碰撞系统
     function Colli(i,j,C){
         var MinDistance = circleArr[i].r + circleArr[j].r
-        if(C < MinDistance){  
+        var LineSpeedX = circleArr[i].moveX - circleArr[j].moveX
+        var LineSpeedY = circleArr[i].moveY - circleArr[j].moveY
+        var LineSpeedC = Math.pow(LineSpeedX,2) + Math.pow(LineSpeedY,2)
+        LineSpeedC = Math.sqrt(LineSpeedC)
+        if(C < MinDistance && LineSpeedC > 60){  
             //发生碰撞
             var TheNewOne = (circleArr[i].Mass >= circleArr[j].Mass) ? i : j;
             var TheDispea = (circleArr[i].Mass >= circleArr[j].Mass) ? j : i;
@@ -95,9 +85,10 @@ body {
 			circleArr[TheNewOne].Mass = circleArr[TheDispea].Mass + circleArr[TheNewOne].Mass
         }
     }
-    
+    //万有引力系统
     function Gravi(K,i,j,A,B,C){
 		//求出万有引力
+        C = (C < 3 ? 3 : C);
         var	Strength = circleArr[i].Mass*circleArr[j].Mass*K/Math.pow(C,2)
 		//受力分解
         var	StrengthX = Strength * A / C
@@ -107,9 +98,56 @@ body {
         circleArr[j].moveX += ((circleArr[i].x < circleArr[j].x)? -1:1) * StrengthX / circleArr[j].Mass;
         circleArr[i].moveY += ((circleArr[i].y > circleArr[j].y)? -1:1) * StrengthY / circleArr[i].Mass;
         circleArr[j].moveY += ((circleArr[i].y < circleArr[j].y)? -1:1) * StrengthY / circleArr[j].Mass;
-        
     }
-    
+    //边界检测系统
+    function BoundaryDetection(Limit,PowerRemain){
+        for(var i = 0; i < POINT; i++){
+            cir = circleArr[i]
+            xh = WIDTH * (+0.5 * Limit + 0.5)
+            xl = WIDTH * (-0.5 * Limit + 0.5)
+            
+            yh = HEIGHT * (+0.5 * Limit + 0.5)
+            yl = HEIGHT * (-0.5 * Limit + 0.5)
+            
+            if(cir.x > xh){
+                cir.x = xh - cir.r;
+                cir.moveX = -1 * cir.moveX * PowerRemain;
+                cir.moveX = Math.abs(cir.moveX) < 4 ? -4 : cir.moveX
+            }
+            if(cir.x < xl){
+                cir.x = xl + cir.r;
+                cir.moveX = -1 * cir.moveX * PowerRemain;
+                cir.moveX = Math.abs(cir.moveX) < 4 ? 4 : cir.moveX
+            }
+            if(cir.y > yh){
+                cir.y = yh - cir.r;
+                cir.moveY = -1 * cir.moveY * PowerRemain;
+                cir.moveY = Math.abs(cir.moveY) < 4 ? -4 : cir.moveY
+            }
+
+            if(cir.y < yl){
+                cir.y = yl + cir.r;
+                cir.moveY = -1 * cir.moveY * PowerRemain;
+                cir.moveY = Math.abs(cir.moveY) < 4 ? 4 : cir.moveY
+            }
+        }
+    }
+    //摄像头系统
+    function Camera(){
+        for(var i = 0; i < POINT; i++) {
+				var cir = circleArr[i];
+				cir.x -= circleArr[POINT - 1].moveX;
+				cir.y -= circleArr[POINT - 1].moveY;
+			}
+    }
+    //运动系统
+    function Motion(){
+        for(var i = 0; i < POINT; i++) {
+				var cir = circleArr[i];
+				cir.x += cir.moveX;
+				cir.y += cir.moveY;
+        }
+    }
 	//每帧绘制
 	function draw() {
 		context.clearRect(0,0, canvas.width, canvas.height);
@@ -149,30 +187,23 @@ body {
 	//调用执行
 	window.onload = function() {
 		init();
-        circleArr[POINT - 1].Mass = 10000;
+        circleArr[POINT - 1].Mass = 8000;
 		circleArr[POINT - 1].x = WIDTH / 2;
 		circleArr[POINT - 1].y = HEIGHT / 2;
 		setInterval(function() {
-			for(var i = 0; i < POINT; i++) {
-				var cir = circleArr[i];
-				cir.x += cir.moveX;
-				cir.y += cir.moveY;
-				cir.moveX = (cir.x > WIDTH * LimitX || cir.x < WIDTH * -1 * LimitX) ? -cir.moveX:cir.moveX;
-				cir.moveY = (cir.y > HEIGHT * LimitX || cir.y < HEIGHT * -1 * LimitX) ? -cir.moveY:cir.moveY;
-			}
-			for(var i = 0; i < POINT; i++) {
-				var cir = circleArr[i];
-				cir.x -= circleArr[POINT - 1].moveX;
-				cir.y -= circleArr[POINT - 1].moveY;
-			}
-			if(fixed == true){
-				circleArr[POINT - 1].r = 4
+			Motion()
+            BoundaryDetection(10,0.2);
+			Camera()
+			//if(fixed == true){
+				circleArr[POINT - 1].r = 20
 				circleArr[POINT - 1].Enable = true;
-				LimitXMin = WIDTH / 2 - WIDTH * LimitRate;
-				LimitXMax = WIDTH / 2 + WIDTH * LimitRate;
-				LimitYMin = HEIGHT / 2 - HEIGHT * LimitRate;
-				LimitYMax = HEIGHT / 2 + HEIGHT * LimitRate;
-			}
+                circleArr[POINT - 1].moveX *= 0.9
+                circleArr[POINT - 1].moveY *= 0.9
+			//	LimitXMin = WIDTH / 2 - WIDTH * LimitRate;
+			//	LimitXMax = WIDTH / 2 + WIDTH * LimitRate;
+			//	LimitYMin = HEIGHT / 2 - HEIGHT * LimitRate;
+			//	LimitYMax = HEIGHT / 2 + HEIGHT * LimitRate;
+			//}
 			draw();
 		}, 20);
 	}
